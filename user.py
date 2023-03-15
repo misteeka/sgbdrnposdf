@@ -17,3 +17,10 @@ def login(username, password):
         realPass = curs.fetchone()[0]
     conn.close()
     return password == realPass
+
+def register(username, password):
+    conn = get_conn()
+    with conn.cursor(cursor_factory=NamedTupleCursor) as curs:
+        curs.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, password))
+    conn.commit()
+    conn.close()
