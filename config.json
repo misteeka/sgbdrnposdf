@@ -1,0 +1,8 @@
+{
+    "tickers": ["POLY", "RUAL", "RTKMP", "RTKM", "ROSN", "RNFT", "RENI", "QIWI", "POSI", "SBER", "PLZL", "PIKK", "PHOR", "OZON", "OKEY", "NVTK", "NLMK", "MVID", "TATNP", "YNDX", "WUSH", "VTBR", "VKCO", "UPRO", "TRNFP", "TGKA", "TCSG", "MTSS", "TATN", "SMLT", "SGZH", "SFTL", "SFIN", "SELG", "SBERP", "CIAN", "FLOT", "FIXP", "FIVE", "FEES", "ETLN", "ENRU", "ENPG", "DSKY", "GAZP", "CHMF", "CBOM", "BSPB", "BELU", "ALRS", "AGRO", "AFLT", "LKOH", "MTLRP", "MTLR", "MSNG", "MOEX", "MGNT", "MDMG", "MAGN", "LSRG", "AFKS", "LENT", "IRAO", "HYDR", "HHRU", "GMKN", "GLTR", "GEMC"],
+    "host": "92.100.158.108",
+    "port": "28005",
+    "user": "idrn",
+    "password": "eplidrpandas",
+    "database": "moex"
+}

@@ -1,47 +1,11 @@
 import streamlit as st
-from postgres.storage import register, login, load_ticker_history, connect
-from markowitz import minimize_risk, maximize_return, getMaxReturn, getMinRisk, getStocksData, getMinReturn, getMaxRisk, getPortfolioHistory
+from postgres.storage import register, login
+from markowitz import minimize_risk, maximize_return, getMaxReturn, getMinRisk, getStocksData, getMinReturn, getMaxRisk
 import datetime
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from config.reader import *
 
-DETAILED_PIE = False
+# hashed_passwords = stauth.Hasher(['abc', 'def']).generate()   
 st.set_page_config(page_icon=":money_with_wings:", page_title="EMALAK Invest", layout="centered", initial_sidebar_state="collapsed")
-sns.set_theme()
-sns.set_context("notebook", font_scale=0.85, rc={"lines.linewidth": 2.5})
-plt.rcParams['figure.facecolor'] = 'none'
-cfg = read_config('config.json')
-conn = connect()
-
-def prettify_weighs(df):
-    return df.sort_values(axis=1, by='Доля в портфеле (%)', ascending=False)
-
-
-def build_pie(df):
-    
-    if df.shape[1] > 7 and not DETAILED_PIE:
-        tickers = list(df.columns.values)
-        values = list(df.values.tolist())
-        top_tickers = tickers[:6]
-        top_values = values[0][:6]
-        other_values = values[0][6:]
-        
-        top_tickers.append("Другие акции")
-        top_values.append(sum(other_values))
-        fig, ax = plt.subplots()
-        ax.pie(top_values, autopct='%1.2f%%')
-        ax.axis('equal')
-        ax.legend(labels=top_tickers)
-        return fig
-    
-    fig, ax = plt.subplots()
-    ax.pie(df.iloc[0], autopct='%1.2f%%')
-    ax.axis('equal')
-    ax.legend(labels=df.columns.values)
-    return fig
 
 def LogInClicked(username, password):
     if login(username, password):
@@ -61,7 +25,7 @@ def RegisterClicked(username, password):
         #print('loggedIn')
     else:
         #st.session_state['loggedIn'] = False
-        st.error('Неизвестная ошибка, попробуйте другое имя пользователя')
+        st.error('Неверный пароль или имя пользователя')
 
 def goToRegistration():
     st.session_state.status = 'register'
@@ -118,10 +82,7 @@ def show_main_page():
         st.session_state.target_risk = st.session_state.min_risk
     if 'target_return' not in st.session_state or (st.session_state.fromDate != fromDate or st.session_state.toDate != toDate):
         st.session_state.target_return = st.session_state.max_return
-    if 'deposit' not in st.session_state:
-        st.session_state.deposit = 10000
     
-    st.session_state.deposit = st.number_input('Депозит', min_value=10000, value=st.session_state.deposit)
     profile = st.radio('Профиль', ['Максимизация доходности', 'Минимизация риска'], index = 0)
     if profile == 'Максимизация доходности':
             st.session_state.target_risk = st.slider('Максимальный риск',min_value=st.session_state.min_risk, max_value=st.session_state.max_risk, step=0.01, value=st.session_state.target_risk)  
@@ -145,20 +106,8 @@ def show_main_page():
                 col1, col2 = st.columns(2)
                 col1.metric("Доходность", "%.2f" % (expected_annual_return * 100) + "%")
                 col2.metric("Риск", "%.2f" % (annual_risk * 100) + "%")
-                
-                prweights = pd.DataFrame(weights, columns=weights.keys(), index=["Доля в портфеле (%)"])
-                prweights = prweights.select_dtypes(exclude=['object', 'datetime']) * 100
-                
-                prweights = prettify_weighs(prweights)
-                st.table(prweights)
-                
-                st.pyplot(build_pie(prweights),transparent=True)
-                
-                st.title('Динамика портфеля')
-                history = getPortfolioHistory(st.session_state.deposit, weights, st.session_state.stocks)
-                
-                st.line_chart(data=history, x='date', y='value')
-                
+                weights = pd.DataFrame(weights, columns=weights.keys(), index=["Доля в портфеле (%)"])
+                st.table(weights)
             elif profile == 'Минимизация риска':
                 st.write('Расчет минимизации риска при заданной доходности в {:10.2f}%...'.format(st.session_state.target_return))
                 port = minimize_risk(stocks=st.session_state.stocks,    target_return=(st.session_state.target_return / 100))
@@ -174,21 +123,8 @@ def show_main_page():
                 col1, col2 = st.columns(2)
                 col1.metric("Доходность", "%.2f" % (expected_annual_return * 100) + "%")
                 col2.metric("Риск", "%.2f" % (annual_risk * 100) + "%")
-                
-                prweights = pd.DataFrame(weights, columns=weights.keys(), index=["Доля в портфеле (%)"])
-                prweights = prweights.select_dtypes(exclude=['object', 'datetime']) * 100
-                
-                prweights = prettify_weighs(prweights)
-                st.table(prweights)
-                
-                st.pyplot(build_pie(prweights),transparent=True)
-                
-                st.title('Динамика портфеля')
-                history = getPortfolioHistory(st.session_state.deposit, weights, st.session_state.stocks)
-                
-                fig = plt.figure()
-                sns.lineplot(data=history, x='date', y='value')
-                st.pyplot(fig)
+                weights = pd.DataFrame(weights, columns=weights.keys(), index=["Доля в портфеле (%)"])
+                st.table(weights)
 
 def show_register_page():
         if st.session_state['loggedIn'] == False and st.session_state.status == 'register':

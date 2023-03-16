@@ -1,10 +1,13 @@
+
 import collections
 import copy
 from collections.abc import Iterable
 from typing import List
+
 import numpy as np
 import pandas as pd
 import cvxpy as cp
+import scipy.optimize as sco
 
 # Выпуклая оптимизация с cvxpy
 class Optimizer():
@@ -13,18 +16,28 @@ class Optimizer():
         expected_returns,
         cov_matrix,
         weight_bounds=(0, 1),
+        solver_options=None,
     ):  
         self.cov_matrix = cov_matrix
         self.expected_returns = expected_returns
         self._max_return_value = None
 
-        num_assets = len(expected_returns)
-        
-        tickers = list(expected_returns.index)
+        if self.expected_returns is None:
+            num_assets = len(cov_matrix)
+        else:
+            num_assets = len(expected_returns)
+
+        if isinstance(expected_returns, pd.Series):
+            tickers = list(expected_returns.index)
+        elif isinstance(cov_matrix, pd.DataFrame):
+            tickers = list(cov_matrix.columns)
+        else:  # int labels
+            tickers = list(range(num_assets))
         self.tickers = tickers
 
-        self.n_assets = num_assets
-        self._w = cp.Variable(num_assets)
+        # Optimization variables
+        self.n_assets = len(tickers)
+        self._w = cp.Variable(len(tickers))
         self._objective = None
         self._additional_objectives = []
         self._constraints = []
@@ -32,9 +45,10 @@ class Optimizer():
         self._upper_bounds = None
         self._opt = None
         self._solver = None
+        self._solver_options = solver_options if solver_options else {}
         self._map_bounds_to_constraints(weight_bounds)
 
-    def clean_weights(self, cutoff=0.0001, rounding=5):
+    def clean_weights(self, cutoff=0.01, rounding=5):
         clean_weights = self.weights.copy()
         clean_weights[np.abs(clean_weights) < cutoff] = 0
         if rounding is not None:
@@ -54,7 +68,7 @@ class Optimizer():
                 self._initial_objective = self._objective.id
                 self._initial_constraint_ids = {const.id for const in self._constraints}
             self._opt.solve(
-                solver=self._solver, verbose=False
+                solver=self._solver, verbose=False, **self._solver_options
             )
 
         except (TypeError, cp.DCPError) as e:

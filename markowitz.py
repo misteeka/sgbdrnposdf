@@ -1,17 +1,29 @@
-import yfinance as yf
+
 import numpy as np
 import pandas as pd
 from optimizer import Optimizer
+from moex.moex import load_historical
+from json import load
+
+def read_config(path):
+    cfg = open(path, 'r')
+    return load(cfg)
+
+cfg = read_config('config.json')
 
 # Получение данных по ценам акций
 def getStocksData(start, end):
-    tickers = ['LKOH.ME','GMKN.ME', 'DSKY.ME', 'NKNC.ME', 'MTSS.ME', 'IRAO.ME', 'SBER.ME', 'AFLT.ME']
-    
-    df_stocks= yf.download(tickers, start='2018-01-01', end='2021-01-01')['Adj Close']
+    global cfg
+    #tickers = ['LKOH.ME','GMKN.ME', 'DSKY.ME', 'NKNC.ME', 'MTSS.ME', 'IRAO.ME', 'SBER.ME', 'AFLT.ME']
+    #df_stocks= yf.download(tickers, start=start, end=end)['Adj Close']
     #df_stocks.head()
-    nullin_df = pd.DataFrame(df_stocks,columns=tickers)
-    nullin_df.dropna()
-    return df_stocks
+    #nullin_df = pd.DataFrame(df_stocks,columns=tickers)
+    #nullin_df.isnull().sum()
+    df = load_historical(cfg.get('tickers'), start, end)
+    #print(df)
+    #print('yahoo')
+    #print(df_stocks)
+    return df
 
 # Получение минимального дохода
 def getMinReturn(stocks):
@@ -32,8 +44,10 @@ def getMaxRisk(stocks):
 # Годовая доходность
 def get_mu(prices):
     frequency = 251 # TODO
+    if not isinstance(prices, pd.DataFrame):
+        print("prices are not in a dataframe")
+        prices = pd.DataFrame(prices)
     returns = prices.pct_change().dropna(how="all")
-    #print('SGBDRN IDRN ', frequency / returns.count())
     return (1 + returns).prod() ** (frequency / returns.count()) - 1
 
 def _is_positive_semidefinite(matrix):
@@ -47,7 +61,6 @@ def _is_positive_semidefinite(matrix):
 def fix_nonpositive_semidefinite(matrix):
     if _is_positive_semidefinite(matrix):
         return matrix
-    print('WTF')
 
     # Eigendecomposition
     q, V = np.linalg.eigh(matrix)
@@ -56,6 +69,9 @@ def fix_nonpositive_semidefinite(matrix):
     q = np.where(q > 0, q, 0)
     # Reconstruct matrix
     fixed_matrix = V @ np.diag(q) @ V.T
+    
+    if not _is_positive_semidefinite(fixed_matrix):  # pragma: no cover
+        print("Could not fix matrix.")
 
     # Rebuild labels if provided
     if isinstance(matrix, pd.DataFrame):
@@ -66,7 +82,10 @@ def fix_nonpositive_semidefinite(matrix):
 
 # Cov
 def get_sigma(prices):
-    frequency = 252 # TODO
+    frequency = 251 # TODO
+    if not isinstance(prices, pd.DataFrame):
+        print("data is not in a dataframe")
+        prices = pd.DataFrame(prices)
     returns = prices.pct_change().dropna(how="all")
     return fix_nonpositive_semidefinite(returns.cov() * frequency)
 
@@ -80,7 +99,7 @@ def getMinRisk(stocks):
 
 # Получение максимально возможного риска портфеля
 def getMaxReturn(stocks):
-    return max(get_mu(stocks).values)
+    return max(get_mu(stocks).values) - 0.01
 
 # Минимальный риск при заданной доходности
 def minimize_risk(stocks, target_return: float):
@@ -99,15 +118,11 @@ def maximize_return(stocks, target_risk: float):
     return ef
 
 def getPortfolioHistory(deposit, weights, stocks):
-    #print(deposit)
-    #print(weights)
     amounts = dict()
     for w in weights:
         price = stocks[w][0]
         amount = (deposit * weights[w]) / price
         amounts[w] = amount
-    #print(stocks)
-    #print(amounts)
     value = []
     dates = []
 
@@ -120,12 +135,10 @@ def getPortfolioHistory(deposit, weights, stocks):
         value.append(cost)
 
     perf = pd.DataFrame({'value': value, 'date': dates})
-    #print(perf)
     return perf
-#df = getStocksData(start='2018-01-01', end='2021-03-15')
-#port = minimize_risk(df, target_return=0.25)
+
+#port = minimize_risk(getStocksData(start='2018-01-01', end='2020-12-31'), target_return=0.25)
 #pwt=port.clean_weights()
 #print("Weights", pwt)
 #print("Portfolio performance:")
 #print(port.portfolio_performance())
-#getAmounts(10000, pwt, df)

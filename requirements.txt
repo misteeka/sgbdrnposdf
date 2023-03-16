@@ -1,0 +1,8 @@
+numpy
+pandas
+cvxpy
+streamlit
+matplotlib
+seaborn
+psycopg2-binary
+apimoex
